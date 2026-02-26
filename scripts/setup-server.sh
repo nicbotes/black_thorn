@@ -144,17 +144,26 @@ for key in KbdInteractiveAuthentication ChallengeResponseAuthentication; do
   fi
 done 2>/dev/null || true
 
-# Match block for black_thorn: no forwarding (keys still from default path)
+# Match block for black_thorn: TCP forwarding yes (for OpenClaw dashboard tunnel)
 if ! grep -q 'Match User black_thorn' "$SSHD_CONFIG"; then
+  SSHD_NEEDS_UPDATE=1
+  [[ -z "$BACKUP" ]] && { BACKUP="${SSHD_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"; cp -a "$SSHD_CONFIG" "$BACKUP"; echo "sshd_config backup: $BACKUP"; }
   cat >> "$SSHD_CONFIG" << 'SSHD_MATCH'
 
-# Restrict black_thorn: no sudo, cannot change own SSH keys (file is root-owned)
+# Restrict black_thorn: no sudo, cannot change own SSH keys (file is root-owned); AllowTcpForwarding yes for OpenClaw dashboard tunnel
 Match User black_thorn
   AllowAgentForwarding no
-  AllowTcpForwarding no
+  AllowTcpForwarding yes
   PermitTTY yes
   X11Forwarding no
 SSHD_MATCH
+else
+  # Block exists; ensure TCP forwarding is allowed so "ssh -L" tunnel to dashboard works
+  if grep -A6 'Match User black_thorn' "$SSHD_CONFIG" | grep -q 'AllowTcpForwarding no'; then
+    [[ "$SSHD_NEEDS_UPDATE" -eq 0 ]] && { BACKUP="${SSHD_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"; cp -a "$SSHD_CONFIG" "$BACKUP"; echo "sshd_config backup: $BACKUP"; }
+    sed -i 's/^[[:space:]]*AllowTcpForwarding no/  AllowTcpForwarding yes/' "$SSHD_CONFIG"
+    SSHD_NEEDS_UPDATE=1
+  fi
 fi
 
 # Restart SSH only if we had something to update
@@ -211,6 +220,43 @@ if command -v curl &>/dev/null; then
   chmod 750 "${BLACK_THORN_HOME}/.ssh"
   grep -q '.npm-global/bin' "${BLACK_THORN_HOME}/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "${BLACK_THORN_HOME}/.bashrc"
   chown black_thorn:black_thorn "${BLACK_THORN_HOME}/.bashrc" 2>/dev/null || true
+  # Cron: run openclaw security audit regularly (docs recommend running regularly)
+  if openclaw_installed && command -v crontab &>/dev/null; then
+    (crontab -l -u black_thorn 2>/dev/null | grep -v "openclaw security audit" || true
+     echo '0 3 * * * PATH=$HOME/.npm-global/bin:$PATH openclaw security audit >> $HOME/.openclaw/security-audit.log 2>&1'
+     echo '0 4 * * 0 PATH=$HOME/.npm-global/bin:$PATH openclaw security audit --deep >> $HOME/.openclaw/security-audit-deep.log 2>&1') | crontab -u black_thorn -
+    mkdir -p "${BLACK_THORN_HOME}/.openclaw"
+    chown black_thorn:black_thorn "${BLACK_THORN_HOME}/.openclaw"
+    echo "Cron installed for black_thorn: openclaw security audit (daily), audit --deep (weekly)."
+  fi
+  # Systemd system service: OpenClaw gateway on boot (managed by nic via sudo systemctl)
+  if openclaw_installed && command -v systemctl &>/dev/null; then
+    cat > /etc/systemd/system/openclaw-gateway.service << 'UNIT_END'
+[Unit]
+Description=OpenClaw gateway (Black Thorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=black_thorn
+Group=black_thorn
+WorkingDirectory=/home/black_thorn
+# Minimal PATH so the daemon doesn't inherit a full user PATH (openclaw doctor recommendation)
+Environment=PATH=/home/black_thorn/.npm-global/bin:/home/black_thorn/.local/bin:/usr/bin:/bin
+ExecStart=/bin/bash -lc 'openclaw gateway'
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT_END
+    systemctl daemon-reload
+    systemctl enable openclaw-gateway.service
+    echo "Systemd service openclaw-gateway enabled (start on boot). As nic: sudo systemctl start|stop|restart|status openclaw-gateway"
+    # Start now so it runs without reboot; if Slack not configured it may exit until tokens are set
+    systemctl start openclaw-gateway.service 2>/dev/null || true
+  fi
 fi
 
 # --- Hardening check: assertions (fail setup if any check fails); print every result

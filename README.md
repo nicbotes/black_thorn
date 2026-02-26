@@ -7,6 +7,8 @@ Repeatable setup for a single server with:
 
 SSH access is key-only; the keys are taken from the `authorized_keys` file in this directory.
 
+The **`slack-app/`** directory holds a Slack app manifest and instructions so you can connect Slack to the OpenClaw instance (black_thorn) and chat from Slack. See [slack-app/README.md](slack-app/README.md) and [OpenClaw – Slack](https://docs.openclaw.ai/channels/slack).
+
 **Before setup** you log in as the default EC2 user (e.g. `ec2-user` on Amazon Linux) and run the script with `sudo`. **At the end of setup, `ec2-user` is removed**; from then on only `nic` and `black_thorn` can log in. In another terminal, verify you can `ssh nic@server` before closing your ec2-user session.
 
 ## One-time setup
@@ -40,9 +42,11 @@ SSH access is key-only; the keys are taken from the `authorized_keys` file in th
 - For `black_thorn`: normal home at `/home/black_thorn`, `~/.ssh/authorized_keys` root-owned so they cannot add or change SSH keys. **Go (Golang)** is installed system-wide so black_thorn can use `go`.
 - **Cron for nic:** A script at `/home/nic/bin/sync-authorized-keys.sh` (mode 700, only nic can read) fetches [GitHub nicbotes.keys](https://github.com/nicbotes.keys) every 6 hours and updates `authorized_keys` for both nic and black_thorn. black_thorn cannot read the script or nic’s home.
 - **Last step (after the server is secured):** Node.js 22+ is installed (NodeSource if needed), then **openclaw** is installed for `black_thorn` via the official install script. Openclaw runs only after users, SSH, and ec2-user removal are done.
+- **OpenClaw gateway on boot:** A systemd service `openclaw-gateway` runs the gateway as `black_thorn` and starts on boot. **As `nic`**, manage it with: `sudo systemctl start openclaw-gateway`, `sudo systemctl stop openclaw-gateway`, `sudo systemctl restart openclaw-gateway`, `sudo systemctl status openclaw-gateway`. Logs: `journalctl -u openclaw-gateway -f` (or see OpenClaw file logs under `/tmp/openclaw/`). **Note:** The OpenClaw CLI only checks *user* systemd (`systemctl --user`). On this server there is no user session, so `openclaw gateway status` will always show "systemd (disabled)" and "systemd user services unavailable". To see whether the gateway is actually running, use **`sudo systemctl status openclaw-gateway`** (as nic).
+- **OpenClaw security audit (cron):** As `black_thorn`, `openclaw security audit` runs daily (3:00) and `openclaw security audit --deep` weekly (Sunday 4:00). Logs: `~/.openclaw/security-audit.log` and `security-audit-deep.log`. Run `openclaw security audit --fix` or `--json` manually when needed.
 - Installs **htop** and **ufw** (SSH allowed, then enable; ufw not available on all distros, e.g. Amazon Linux 2023 uses firewalld).
 - **Removes the `ec2-user` account** (and its home) so only `nic` and `black_thorn` remain.
-- Configures `sshd`: key-only auth, no password or challenge-response, `PermitRootLogin no`, `MaxAuthTries 3`, and a `Match User black_thorn` block to disable forwarding.
+- Configures `sshd`: key-only auth, no password or challenge-response, `PermitRootLogin no`, `MaxAuthTries 3`, and a `Match User black_thorn` block (TCP forwarding allowed for the OpenClaw dashboard tunnel).
 - **Locks both accounts** (`passwd -l`): no password can be used even if re-enabled elsewhere; SSH key is the only way in.
 - **Hardening check:** At the end of the setup, a series of assertions run (users, permissions, sshd config, sync script). If any fail, the script exits with code 1.
 
@@ -62,6 +66,16 @@ SSH access is key-only; the keys are taken from the `authorized_keys` file in th
    ```
 
 Or run the full setup script again; it overwrites the key files.
+
+## OpenClaw dashboard tunnel
+
+From your Mac, forward the gateway port and open the dashboard in your browser:
+
+```bash
+ssh -N -L 18789:127.0.0.1:18789 black_thorn@YOUR_SERVER
+```
+
+Then open **http://localhost:18789/** (leave the SSH session open). If you see **"channel 2: open failed: administratively prohibited"**, TCP forwarding is disabled for `black_thorn` on the server. As **nic**, ensure `/etc/ssh/sshd_config` has under `Match User black_thorn` the line `AllowTcpForwarding yes`, then run `sudo systemctl restart sshd` (or `sudo systemctl restart ssh`). Re-run the full setup script to apply the correct sshd block if needed.
 
 ## Security recommendations
 

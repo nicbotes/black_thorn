@@ -1,0 +1,68 @@
+{
+  "display_information": {
+    "name": "Black Thorn",
+    "description": "Slack connector for OpenClaw (Black Thorn)"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Black Thorn",
+      "always_online": false
+    },
+    "app_home": {
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "slash_commands": [
+      {
+        "command": "/openclaw",
+        "description": "Send a message to Black Thorn",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "assistant:write",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "commands",
+        "emoji:read",
+        "files:read",
+        "files:write",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "im:read",
+        "mpim:history",
+        "mpim:read",
+        "pins:read",
+        "pins:write",
+        "reactions:read",
+        "reactions:write",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "socket_mode_enabled": true,
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim",
+        "reaction_added",
+        "reaction_removed",
+        "member_joined_channel",
+        "member_left_channel",
+        "channel_rename",
+        "pin_added",
+        "pin_removed"
+      ]
+    }
+  }
+}
