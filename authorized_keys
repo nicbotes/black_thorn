@@ -1,0 +1,4 @@
+# SSH public keys for server access (nic and black_thorn).
+# One key per line.
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFCXzYXNM/7b+N1/Q9LA48KF5Hfq2rSo07bEPVYN1XPA
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIQC1KfHluXzyprYytlzDx9M3Mc3lJSIJgoXbQh/BFpW nic-openclaw
