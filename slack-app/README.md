@@ -68,6 +68,12 @@ For DMs, use pairing: `openclaw pairing approve slack <code>` (see [Pairing](htt
 
 ## Troubleshooting
 
+- **Bot sends every reply twice (duplicate messages)**  
+  This is a [known OpenClaw bug](https://github.com/openclaw/openclaw/issues/22254): the draft preview stream and final delivery both post the same message. A fix is in progress ([PR #22440](https://github.com/openclaw/openclaw/pull/22440), [PR #23118](https://github.com/openclaw/openclaw/pull/23118)). Until it lands in a release:
+  - Ensure **only one** gateway process is running (e.g. one `openclaw-gateway` systemd service).
+  - If using **Socket Mode**, do **not** set an Events Request URL in the Slack app (avoid receiving the same events twice).
+  - After a fix is released, update OpenClaw on the server (`curl -fsSL https://openclaw.ai/install.sh | bash` as `black_thorn` or per OpenClaw docs).
+
 - **"channel resolve failed; using config entries. Error: missing_scope"**  
   OpenClaw could not resolve channel names at startup. Socket Mode still works. To clear the warning: in the Slack app go to **OAuth & Permissions**, add the scopes `groups:read`, `im:read`, `mpim:read` if missing (our manifest includes them), then **reinstall the app** to your workspace. Restart the gateway.
 

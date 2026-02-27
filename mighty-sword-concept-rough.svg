@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="64" fill="#05060b" />
+
+  <!-- sword spine -->
+  <rect x="246" y="60" width="20" height="392" fill="#c9f0ff" opacity="0.7" />
+  <circle cx="256" cy="60" r="26" fill="#e9fffb" opacity="0.8" />
+
+  <!-- wolf head block -->
+  <path d="M120 250 L200 180 L256 200 L312 180 L392 250 L360 300 L256 280 L152 300 Z" fill="#1c2d3a" stroke="#7ff9c4" stroke-width="6" />
+
+  <!-- eyes -->
+  <polygon points="198 248 214 236 230 246 214 258" fill="#ffd166" />
+  <polygon points="286 246 302 236 318 248 302 258" fill="#ffd166" />
+
+  <!-- snout hint -->
+  <path d="M200 280 L256 300 L312 280" stroke="#7ff9c4" stroke-width="6" fill="none" />
+
+  <!-- ear spikes -->
+  <polygon points="170 190 200 150 210 190" fill="#122029" />
+  <polygon points="302 150 332 190 322 200" fill="#122029" />
+
+  <text x="256" y="460" font-family="'Cinzel', serif" font-size="32" fill="#7ff9c4" text-anchor="middle" opacity="0.6">concept rough</text>
+</svg>

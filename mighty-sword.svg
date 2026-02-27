@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mighty Sword avatar">
+  <defs>
+    <radialGradient id="night" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#a2d4ff" />
+      <stop offset="60%" stop-color="#1c2c4a" />
+      <stop offset="100%" stop-color="#0a0f1d" />
+    </radialGradient>
+    <linearGradient id="starlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fefae0" />
+      <stop offset="100%" stop-color="#ffd166" />
+    </linearGradient>
+    <linearGradient id="forest" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#335c67" />
+      <stop offset="100%" stop-color="#243b2f" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="64" fill="url(#night)" />
+
+  <g opacity="0.8">
+    <path d="M180 420 L120 380 L150 360 L110 330 L150 310 L120 280 L190 260" fill="none" stroke="#375d3b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M332 420 L392 380 L362 360 L402 330 L362 310 L392 280 L322 260" fill="none" stroke="#375d3b" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <path d="M140 360 Q256 200 372 360" fill="url(#forest)" stroke="#162317" stroke-width="6" stroke-linecap="round" />
+
+  <path d="M256 150 C210 150 180 190 180 240 C180 272 194 302 220 320 L220 350 C220 364 230 380 256 380 C282 380 292 364 292 350 L292 320 C318 302 332 272 332 240 C332 190 302 150 256 150 Z" fill="#e7eded" stroke="#bac8c9" stroke-width="8" />
+
+  <path d="M208 236 Q256 206 304 236" fill="none" stroke="#3f4a56" stroke-width="12" stroke-linecap="round" />
+  <circle cx="230" cy="246" r="10" fill="#334155" />
+  <circle cx="282" cy="246" r="10" fill="#334155" />
+  <path d="M226 298 Q256 322 286 298" fill="none" stroke="#3f4a56" stroke-width="10" stroke-linecap="round" />
+
+  <path d="M256 100 L270 170 L256 160 L242 170 Z" fill="url(#starlight)" />
+  <circle cx="256" cy="82" r="24" fill="url(#starlight)" />
+
+  <path d="M256 320 L244 420 L256 404 L268 420 Z" fill="#f4e285" opacity="0.7" />
+
+  <g fill="#f9f3d2" opacity="0.85">
+    <circle cx="110" cy="120" r="4" />
+    <circle cx="420" cy="140" r="3.5" />
+    <circle cx="360" cy="70" r="5" />
+    <circle cx="180" cy="70" r="3" />
+    <circle cx="90" cy="220" r="3" />
+    <circle cx="430" cy="240" r="4" />
+  </g>
+</svg>

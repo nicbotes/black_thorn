@@ -1,0 +1,64 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="studMetal" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFDFA8"/>
+      <stop offset="45%" stop-color="#FFB347"/>
+      <stop offset="90%" stop-color="#E35A00"/>
+      <stop offset="100%" stop-color="#9A2F00"/>
+    </radialGradient>
+    <linearGradient id="studHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="40%" stop-color="#FFE5BC" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="blockPaint" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#26292F"/>
+      <stop offset="100%" stop-color="#0C0E13"/>
+    </radialGradient>
+    <linearGradient id="cyanEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F5FF"/>
+      <stop offset="100%" stop-color="#0094FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.55" />
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="24" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0.85  0 0 0 0 1  0 0 0 0.55 0" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="#050608"/>
+
+  <ellipse cx="256" cy="420" rx="180" ry="70" fill="#000" opacity="0.65"/>
+
+  <g filter="url(#shadow)">
+    <path d="M96 180 L96 356 C96 388 118 412 150 418 L362 458 C396 464 424 438 424 404 V220 C424 192 404 168 376 164 L164 140 C126 136 96 166 96 204Z" fill="url(#blockPaint)"/>
+  </g>
+
+  <path d="M116 192 L116 344 C116 368 134 388 160 392 L348 422 C368 426 384 410 384 390 V220 C384 198 368 180 346 178 L158 160 C134 158 116 174 116 198Z" stroke="url(#cyanEdge)" stroke-width="6" opacity="0.9"/>
+
+  <g filter="url(#glow)">
+    <ellipse cx="256" cy="120" rx="130" ry="70" fill="#00CFFF" opacity="0.45"/>
+  </g>
+
+  <g>
+    <ellipse cx="256" cy="150" rx="128" ry="70" fill="#13161C"/>
+    <path d="M128 150 L140 308 C144 356 182 394 230 402 L282 410 C330 418 370 390 378 344 L410 170" fill="#191C24" opacity="0.8"/>
+  </g>
+
+  <g>
+    <ellipse cx="256" cy="150" rx="110" ry="60" fill="url(#studMetal)"/>
+    <ellipse cx="256" cy="142" rx="84" ry="36" fill="url(#studHighlight)"/>
+    <ellipse cx="256" cy="160" rx="110" ry="60" fill="#000" opacity="0.18"/>
+    <ellipse cx="256" cy="138" rx="80" ry="30" fill="#FFF8E7" opacity="0.18"/>
+  </g>
+
+  <path d="M168 204 L344 230" stroke="#00CFFF" stroke-width="8" stroke-linecap="round" stroke-dasharray="20 18" opacity="0.75"/>
+  <path d="M184 240 L336 264" stroke="#00A3FF" stroke-width="5" stroke-linecap="round" stroke-dasharray="12 14" opacity="0.6"/>
+
+  <path d="M190 320 H322" stroke="#FFB347" stroke-width="10" stroke-linecap="round"/>
+  <path d="M210 344 H302" stroke="#FFB347" stroke-width="6" stroke-linecap="round"/>
+
+  <text x="256" y="380" text-anchor="middle" fill="#FFFFFF" font-family="'Montserrat', 'Space Grotesk', sans-serif" font-size="64" font-weight="700" letter-spacing="6">STUD</text>
+  <text x="256" y="424" text-anchor="middle" fill="#00E5FF" font-family="'Space Grotesk', monospace" font-size="24" letter-spacing="8">ROOT BUILDER</text>
+</svg>
