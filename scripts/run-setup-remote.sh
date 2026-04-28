@@ -32,9 +32,11 @@ fi
 REMOTE_USER="${REMOTE%%@*}"
 REMOTE_HOME="/home/$REMOTE_USER"
 
-echo "Copying authorized_keys and setup script to $REMOTE..."
+echo "Copying authorized_keys, setup script, and avatar images to $REMOTE..."
 scp "$AUTHORIZED_KEYS" "$REMOTE:$REMOTE_HOME/authorized_keys"
 scp "$SCRIPT_DIR/setup-server.sh" "$REMOTE:$REMOTE_HOME/setup-server.sh"
+[[ -f "$REPO_ROOT/black_thorn.png" ]] && scp "$REPO_ROOT/black_thorn.png" "$REMOTE:$REMOTE_HOME/"
+[[ -f "$REPO_ROOT/stud.png" ]] && scp "$REPO_ROOT/stud.png" "$REMOTE:$REMOTE_HOME/"
 
 echo "Running setup as root on $REMOTE..."
 ssh -t "$REMOTE" "sudo AUTHORIZED_KEYS=$REMOTE_HOME/authorized_keys $REMOTE_HOME/setup-server.sh"

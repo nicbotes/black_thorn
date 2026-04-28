@@ -197,6 +197,16 @@ if getent passwd ec2-user &>/dev/null; then
   echo "ec2-user account kept (password locked, no sudo). Once you've verified nic/black_thorn SSH works and you have console access, you can remove it with: sudo userdel -r ec2-user"
 fi
 
+# --- Avatar images for Black Thorn and Stud (if present next to this script when run via run-setup-remote)
+SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
+for img in black_thorn.png stud.png; do
+  if [[ -f "$SETUP_DIR/$img" ]]; then
+    cp "$SETUP_DIR/$img" "$BLACK_THORN_HOME/"
+    chown black_thorn:black_thorn "$BLACK_THORN_HOME/$img"
+    echo "Dropped $img to $BLACK_THORN_HOME/"
+  fi
+done
+
 # --- Last step: Node 22+ and openclaw for black_thorn (server is already secured); skip if already done
 need_node22() {
   if ! command -v node &>/dev/null; then return 0; fi
