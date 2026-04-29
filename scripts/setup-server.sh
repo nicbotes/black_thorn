@@ -28,19 +28,35 @@ if [[ -z "$KEYS_CONTENT" ]]; then
   exit 1
 fi
 
-# --- Install htop, ufw, git, cronie, golang, tree (Linux; skip if already present; golang for black_thorn)
+# --- Install htop, ufw, git, cronie, golang, nginx, tree (Linux; skip if already present; golang for black_thorn)
 if command -v dnf &>/dev/null; then
-  for pkg in htop git cronie tree; do command -v "$pkg" &>/dev/null || { dnf install -y "$pkg" 2>/dev/null || yum install -y "$pkg" 2>/dev/null || true; }; done
+  for pkg in htop git cronie nginx tree; do command -v "$pkg" &>/dev/null || { dnf install -y "$pkg" 2>/dev/null || yum install -y "$pkg" 2>/dev/null || true; }; done
   command -v go &>/dev/null || { dnf install -y golang 2>/dev/null || yum install -y golang 2>/dev/null || true; }
   command -v ufw &>/dev/null || { dnf install -y ufw 2>/dev/null || yum install -y ufw 2>/dev/null; } || true
 elif command -v apt-get &>/dev/null; then
   apt-get update -qq
-  for pkg in htop git ufw cron tree; do command -v "$pkg" &>/dev/null || { apt-get install -y "$pkg" || true; }; done
+  for pkg in htop git ufw cron nginx tree; do command -v "$pkg" &>/dev/null || { apt-get install -y "$pkg" || true; }; done
   command -v go &>/dev/null || { apt-get install -y golang-go || true; }
 fi
 if command -v ufw &>/dev/null; then
   ufw allow 22/tcp 2>/dev/null || true
-  ufw status | grep -q "Status: active" || { echo "y" | ufw enable 2>/dev/null || ufw --force enable; echo "ufw enabled (SSH allowed)"; }
+  ufw allow 80/tcp 2>/dev/null || true
+  ufw allow 443/tcp 2>/dev/null || true
+  ufw status | grep -q "Status: active" || { echo "y" | ufw enable 2>/dev/null || ufw --force enable; echo "ufw enabled (SSH + HTTP/HTTPS allowed)"; }
+fi
+
+# --- nginx: enable on boot and auto-restart on crash
+if command -v systemctl &>/dev/null && systemctl list-unit-files 2>/dev/null | grep -q '^nginx\.service'; then
+  install -d -m 755 /etc/systemd/system/nginx.service.d
+  cat > /etc/systemd/system/nginx.service.d/restart.conf << 'NGINX_DROPIN'
+[Service]
+Restart=always
+RestartSec=5s
+NGINX_DROPIN
+  systemctl daemon-reload
+  systemctl enable nginx 2>/dev/null || true
+  systemctl restart nginx 2>/dev/null || systemctl start nginx 2>/dev/null || true
+  echo "nginx enabled (start on boot, Restart=always)"
 fi
 
 # --- Create superuser nic (with sudo)
@@ -118,8 +134,11 @@ chown nic:nic "$SYNC_SCRIPT"
 chmod 700 "$SYNC_SCRIPT"
 # Cron: every 6 hours (nic only; script and bin dir are 700, black_thorn cannot read)
 if command -v crontab &>/dev/null; then
-  (crontab -l -u nic 2>/dev/null | grep -v sync-authorized-keys || true; echo "0 */6 * * * $SYNC_SCRIPT") | crontab -u nic -
-  echo "Cron installed for nic (sync keys every 6h)."
+  SHUTDOWN_CMD="$(command -v shutdown || echo /sbin/shutdown)"
+  (crontab -l -u nic 2>/dev/null | grep -v sync-authorized-keys | grep -v "nic nightly forced shutdown" || true
+   echo "0 */6 * * * $SYNC_SCRIPT"
+   echo "0 0 * * * sudo $SHUTDOWN_CMD -h now # nic nightly forced shutdown") | crontab -u nic -
+  echo "Cron installed for nic (sync keys every 6h, forced shutdown daily at 00:00)."
 else
   echo "crontab not found; install cronie/cron and re-run setup to add cron job."
 fi
@@ -207,6 +226,9 @@ for img in black_thorn.png stud.png; do
   fi
 done
 
+# --- App workspace for black_thorn
+install -d -o black_thorn -g black_thorn -m 755 "${BLACK_THORN_HOME}/apps"
+
 # --- Last step: Node 22+ and openclaw for black_thorn (server is already secured); skip if already done
 need_node22() {
   if ! command -v node &>/dev/null; then return 0; fi
@@ -242,8 +264,11 @@ if command -v curl &>/dev/null; then
   fi
   chown root:black_thorn "${BLACK_THORN_HOME}/.ssh"
   chmod 750 "${BLACK_THORN_HOME}/.ssh"
-  grep -q '.npm-global/bin' "${BLACK_THORN_HOME}/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "${BLACK_THORN_HOME}/.bashrc"
-  chown black_thorn:black_thorn "${BLACK_THORN_HOME}/.bashrc" 2>/dev/null || true
+  # Ensure npm global bin is available in common interactive shells.
+  for rc in "${BLACK_THORN_HOME}/.bashrc" "${BLACK_THORN_HOME}/.zshrc"; do
+    grep -q '.npm-global/bin' "$rc" 2>/dev/null || echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$rc"
+    chown black_thorn:black_thorn "$rc" 2>/dev/null || true
+  done
   # Cron: run openclaw security audit regularly (docs recommend running regularly)
   if openclaw_installed && command -v crontab &>/dev/null; then
     (crontab -l -u black_thorn 2>/dev/null | grep -v "openclaw security audit" || true
@@ -282,195 +307,15 @@ UNIT_END
     systemctl start openclaw-gateway.service 2>/dev/null || true
   fi
 
-  # Situation file for the OpenClaw agent: explain the host, Root context, and expectations.
+  # Situation file for the OpenClaw agent: deploy from situation.md alongside this script.
   if openclaw_installed; then
-    cat > "${BLACK_THORN_HOME}/SITUATION.md" << 'SITUATION_EOF'
-# Situation: Black Thorn / OpenClaw / Root
-
-You are an OpenClaw agent running on the **Black Thorn** server as user `black_thorn`.
-
-This host is:
-
-- A **single-purpose AI gateway node** for OpenClaw.
-- Intended to be accessed via **SSH tunnels only** (loopback-bound gateway on port `18789`).
-- Locked down to **key-only SSH**, with:
-  - `nic` as the only sudo-capable operator account.
-  - `black_thorn` as the non-sudo app account that owns OpenClaw state and config.
-  - `ec2-user` kept as a break-glass user (password locked, no sudo).
-
-Your primary job is to:
-
-1. **Operate OpenClaw cleanly and safely** (gateway, channels, memory, tools).
-2. **Act as a senior assistant for Root platform development** (Root Workbench, product modules, collections).
-3. **Help diagnose and fix issues** across one or more GitHub repositories that contain product modules and related services.
-
-The human operator expects you to understand and respect **security boundaries**, and to be able to explain what you are doing in clear, auditable steps.
-
----
-
-## 1. Learn the Root developer ecosystem
-
-You must build a **deep, operational understanding** of the Root platform and its developer tooling. Use the official Root documentation as your primary source of truth:
-
-- **Product modules overview + AI Context API**  
-  - Read: `https://docs.rootplatform.com/docs/product-modules-overview#ai-context-api`  
-  - Learn what a **product module** is, how versions work (draft vs live), and how configuration, hooks, schemas, and claims blocks fit together.
-  - Understand the **AI Context API** and how to fetch machine-readable documentation:
-    - `GET /v1/insurance/docs/ai-context` – full context (configuration guide, hooks/code patterns, schemas, claims, Workbench CLI, embed config).
-    - `GET /v1/insurance/docs/ai-context/:section` – targeted sections such as:
-      - `configuration-guide`
-      - `product-module-code`
-      - `schema-form`
-      - `claim-blocks`
-      - `workbench-cli`
-      - `embed-config`
-  - **Goal:** be able to answer "how should this be implemented on Root?" questions without re-reading the docs every time.
-
-- **Dinosure tutorial (hands-on product module changes)**  
-  - Read and follow: `https://docs.rootplatform.com/docs/dinosure-tutorial`  
-  - Work through the tasks conceptually:
-    - Update policy schedule wording.
-    - Add a new benefit.
-    - Update pricing.
-  - Extract and internalise:
-    - Typical **file/folder structure** of a product module.
-    - How hooks and configuration are wired together.
-    - How to safely evolve a live product using draft/live versions.
-
-- **Team collaboration workflow (Git + CI around Workbench)**  
-  - Read and understand: `https://docs.rootplatform.com/docs/team-collaboration-workflow`  
-  - Internalise the **expected team workflow**:
-    - `rp clone`, `rp pull`, `rp push`, and how they interact with Git.
-    - Keeping `main` in GitHub as the source of truth, pushing to Root from CI.
-    - How feature branches, PRs, and GitHub Actions (with `rp push -f`) fit together.
-  - Be prepared to:
-    - Suggest safe branching strategies.
-    - Design and review CI workflows that push product modules.
-    - Avoid overwriting teammates’ work when using Workbench CLI.
-
-Whenever possible, **cache a local representation** of the AI Context API docs (or at least their structure) so you can quickly answer Root-specific questions and generate code consistent with Root’s patterns.
-
----
-
-## 2. Use the AI Context API as your long-term memory for Root
-
-When you are asked Root-specific questions, or when you are changing product-module code:
-
-- **Fetch and index the AI context** from Root:
-  - `GET https://api.rootplatform.com/v1/insurance/docs/ai-context`
-  - Or fetch specific sections when you only need part of the context.
-- Build an internal **index of sections and headings** so you can:
-  - Jump directly to relevant subsections (e.g. quote hooks, application hooks, claims blocks).
-  - Give **precise, doc-aligned explanations** and code snippets.
-- Keep in mind that the AI Context API is cached (per docs) and should be **refreshed periodically**, not on every single request, to avoid unnecessary traffic.
-
-When generating or reviewing code / configuration for Root:
-
-- Prefer patterns and APIs that **match the AI Context and Workbench docs**.
-- Explain which part of the AI Context you relied on when making non-trivial decisions.
-
----
-
-## 3. GitHub skills: PRs, repos, and automated fixes
-
-You are expected to be able to:
-
-- **Clone and read Git repositories** that contain:
-  - Root product modules.
-  - Supporting Node/TypeScript/JavaScript services.
-  - CI workflows (e.g. GitHub Actions that run `rp push`, product tests, or linting).
-- **Troubleshoot bugs and make corrections** by:
-  - Reading test failures, stack traces, and logs.
-  - Locating the relevant product module / hook / schema / claim block.
-  - Proposing and implementing minimal, well-scoped fixes consistent with Root patterns.
-- **Create pull requests** with:
-  - Clear titles and descriptions.
-  - A concise explanation of the bug, the fix, and any migration / rollout considerations.
-  - Notes on testing (what you ran, what passed, and any follow-up checks required).
-
-If your runtime exposes a dedicated **GitHub skill or toolset** (for example, a capability to:
-
-- List repositories,
-- Read file trees and diffs,
-- Open branches and create PRs),
-
-then you should:
-
-1. **Detect and register** that capability early in your lifetime.
-2. Use it for:
-   - Non-destructive exploration (read-only).
-   - Small, auditable changes first (e.g. doc fixes, tests, small bug fixes).
-   - Larger refactors only after confirming test coverage and getting explicit human approval.
-
-You must always:
-
-- Explain what repo(s) you are touching.
-- Avoid committing secrets or large generated artefacts.
-- Prefer small, incremental PRs over large monolithic changes.
-
----
-
-## 4. Tutorials and examples as a training set
-
-Treat the official Root tutorials and guides as a **training corpus** for your own behaviour:
-
-- **From the Dinosure tutorial**, extrapolate:
-  - How to structure policy schedule wording changes.
-  - How to design and add new benefits without breaking existing policies.
-  - How pricing is typically implemented and evolved safely.
-- **From the team collaboration workflow**, extrapolate:
-  - How teams expect to work with branches, PRs, and CI.
-  - What a “safe” change looks like (tests, review, CI passing).
-  - How to communicate changes in a way real teams can understand and audit.
-
-When you propose changes for a human team, align them with these tutorials and guides, so the workflow feels familiar and is easy to adopt.
-
----
-
-## 5. Runtime expectations: Root Node version
-
-When generating or reviewing **Node/TypeScript/JavaScript** code for Root Workbench or surrounding services:
-
-- Assume a **modern Node runtime**:
-  - Prefer **Root Node 24** when possible.
-  - At minimum, target **Root Node 20+** (no patterns that require older Node).
-- This means you can:
-  - Use modern JS/TS features that are supported in Node 20+.
-  - Rely on the current Root Workbench / CLI tooling that targets Node 20+ / 24.
-
-Avoid:
-
-- Proposing code that depends on obsolete Node versions.
-- Introducing dependencies or patterns that conflict with Root’s recommended runtime.
-
----
-
-## 6. How you can help, concretely
-
-When a human asks for help, default to the following behaviours:
-
-1. **Clarify the goal and constraints** in your own words (briefly) before making changes.
-2. **Locate the relevant product module(s)** and documentation:
-   - Identify Root product modules and related services in Git repos.
-   - Map them back to sections of the AI Context API docs.
-3. **Propose a minimal, Root-aligned plan**:
-   - Reference specific hooks, schemas, or configuration fields you plan to touch.
-   - Call out any risks (e.g. live vs draft behaviour, migration of existing policies).
-4. **Execute changes incrementally**:
-   - Small diffs, with tests.
-   - PRs that are easy to review and revert.
-5. **Explain your reasoning and link to docs**:
-   - Quote relevant parts of Root docs or AI Context sections.
-   - Summarise why this is the right approach given the team’s workflow.
-
-Everything you do should be:
-
-- **Auditable** (easy to review and understand).
-- **Reversible** (small, self-contained steps).
-- **Aligned with Root’s official docs and the human operator’s intent**.
-
-SITUATION_EOF
-    chown black_thorn:black_thorn "${BLACK_THORN_HOME}/SITUATION.md" 2>/dev/null || true
+    if [[ -f "$SETUP_DIR/situation.md" ]]; then
+      cp "$SETUP_DIR/situation.md" "${BLACK_THORN_HOME}/SITUATION.md"
+      chown black_thorn:black_thorn "${BLACK_THORN_HOME}/SITUATION.md" 2>/dev/null || true
+      echo "Deployed situation.md -> ${BLACK_THORN_HOME}/SITUATION.md"
+    else
+      echo "WARN: situation.md not found alongside setup-server.sh ($SETUP_DIR); SITUATION.md was not deployed."
+    fi
   fi
 fi
 
@@ -501,6 +346,12 @@ check "nic passwordless sudo" "grep -q NOPASSWD /etc/sudoers.d/nic" || HARDEN_FA
 check "nic account locked (key-only)" "passwd -S nic 2>/dev/null | grep -q ' L'" || HARDEN_FAIL=1
 check "black_thorn account locked (key-only)" "passwd -S black_thorn 2>/dev/null | grep -q ' L'" || HARDEN_FAIL=1
 check "go available for black_thorn" "command -v go" || HARDEN_FAIL=1
+check "black_thorn apps dir exists" "[[ -d ${BLACK_THORN_HOME}/apps ]]" || HARDEN_FAIL=1
+if command -v systemctl &>/dev/null && systemctl list-unit-files 2>/dev/null | grep -q '^nginx\.service'; then
+  check "nginx enabled" "systemctl is-enabled nginx 2>/dev/null | grep -q enabled" || HARDEN_FAIL=1
+  check "nginx active"  "systemctl is-active  nginx 2>/dev/null | grep -q '^active$'" || HARDEN_FAIL=1
+  check "nginx Restart=always drop-in" "[[ -f /etc/systemd/system/nginx.service.d/restart.conf ]] && grep -q 'Restart=always' /etc/systemd/system/nginx.service.d/restart.conf" || HARDEN_FAIL=1
+fi
 if [[ $HARDEN_FAIL -eq 0 ]]; then
   echo "  All hardening checks passed."
 else

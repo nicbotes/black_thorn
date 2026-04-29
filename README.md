@@ -27,8 +27,10 @@ The **`slack-app/`** directory holds a Slack app manifest and instructions so yo
    ```bash
    scp authorized_keys ec2-user@YOUR_SERVER:/tmp/authorized_keys
    scp scripts/setup-server.sh ec2-user@YOUR_SERVER:/tmp/
+   scp situation.md ec2-user@YOUR_SERVER:/tmp/situation.md
    ssh ec2-user@YOUR_SERVER 'sudo AUTHORIZED_KEYS=/tmp/authorized_keys /tmp/setup-server.sh'
    ```
+   `situation.md` must sit next to `setup-server.sh` so it can be deployed to `~black_thorn/SITUATION.md` (the agent's operating brief).
 
 3. **Log in:**
    - `ssh nic@YOUR_SERVER` (sudo)
@@ -44,7 +46,10 @@ The **`slack-app/`** directory holds a Slack app manifest and instructions so yo
 - **Last step (after the server is secured):** Node.js 22+ is installed (NodeSource if needed), then **openclaw** is installed for `black_thorn` via the official install script. Openclaw runs only after users, SSH, and ec2-user removal are done.
 - **OpenClaw gateway on boot:** A systemd service `openclaw-gateway` runs the gateway as `black_thorn` and starts on boot. **As `nic`**, manage it with: `sudo systemctl start openclaw-gateway`, `sudo systemctl stop openclaw-gateway`, `sudo systemctl restart openclaw-gateway`, `sudo systemctl status openclaw-gateway`. Logs: `journalctl -u openclaw-gateway -f` (or see OpenClaw file logs under `/tmp/openclaw/`). **Note:** The OpenClaw CLI only checks *user* systemd (`systemctl --user`). On this server there is no user session, so `openclaw gateway status` will always show "systemd (disabled)" and "systemd user services unavailable". To see whether the gateway is actually running, use **`sudo systemctl status openclaw-gateway`** (as nic).
 - **OpenClaw security audit (cron):** As `black_thorn`, `openclaw security audit` runs daily (3:00) and `openclaw security audit --deep` weekly (Sunday 4:00). Logs: `~/.openclaw/security-audit.log` and `security-audit-deep.log`. Run `openclaw security audit --fix` or `--json` manually when needed.
-- Installs **htop** and **ufw** (SSH allowed, then enable; ufw not available on all distros, e.g. Amazon Linux 2023 uses firewalld).
+- Installs **htop** and **ufw** (SSH, HTTP, HTTPS allowed, then enable; ufw not available on all distros, e.g. Amazon Linux 2023 uses firewalld).
+- Installs **nginx**, enables it on boot, and adds a systemd drop-in (`/etc/systemd/system/nginx.service.d/restart.conf`) with `Restart=always` and `RestartSec=5s` so it auto-restarts on crash. Manage as `nic` with `sudo systemctl {start,stop,restart,status} nginx`.
+- Creates **`/home/black_thorn/apps/`** as the workspace for `black_thorn` apps (see `~black_thorn/SITUATION.md`).
+- Deploys `situation.md` from this repo to `/home/black_thorn/SITUATION.md` as the OpenClaw agent's operating brief (sysadmin/analyst role, `~/apps` workflow, Telegram gateway).
 - **Keeps the `ec2-user` account as break-glass** – its password is locked, but the account remains so you can still recover access via the cloud console / original SSH key if something goes wrong with `nic` or `black_thorn`. Once you’ve verified everything works and you have another recovery path, you can remove it manually (`sudo userdel -r ec2-user`).
 - Configures `sshd`: key-only auth, no password or challenge-response, `PermitRootLogin no`, `MaxAuthTries 3`, and a `Match User black_thorn` block (TCP forwarding allowed for the OpenClaw dashboard tunnel).
 - **Locks both accounts** (`passwd -l`): no password can be used even if re-enabled elsewhere; SSH key is the only way in.
